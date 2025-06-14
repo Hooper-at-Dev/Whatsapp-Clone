@@ -1,205 +1,263 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ArrowDown,
-  ChevronDown,
-  Paperclip,
-  User,
-  Smile,
-  Lock,
-  Mic,
-  Send
-} from 'lucide-react';
-import { useRouter } from "next/router";
-import { useAuthState } from "react-firebase-hooks/auth";
-import { useCollection } from "react-firebase-hooks/firestore";
-import { auth, db } from "../../firebase";
-import { Picker } from "emoji-mart";
-import firebase from "firebase";
-import { useEffect, useRef, useState } from "react";
-import getRecipientEmail from "../../utils/getRecipientEmail";
-import Timeago from "react-timeago";
+"use client"
 
-// Animation variants for chat messages
+import { motion, AnimatePresence } from "framer-motion"
+import { ArrowDown, Paperclip, User, Smile, Lock, Mic, Send } from "lucide-react"
+import { useRouter } from "next/router"
+import { useAuthState } from "react-firebase-hooks/auth"
+import { useCollection } from "react-firebase-hooks/firestore"
+import { auth, db } from "../../firebase"
+import { Picker } from "emoji-mart"
+import firebase from "firebase"
+import { useEffect, useRef, useState } from "react"
+import getRecipientEmail from "../../utils/getRecipientEmail"
+import Timeago from "react-timeago"
+
+// Enhanced animation variants for chat messages
 const messageVariants = {
-  initial: { opacity: 0, y: 20, scale: 0.95 },
-  animate: { 
-    opacity: 1, 
+  initial: { opacity: 0, y: 30, scale: 0.8, rotateX: -15 },
+  animate: {
+    opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.5, ease: "easeOut" }
-  },
-  exit: { opacity: 0, y: -20, scale: 0.95, transition: { duration: 0.3 } }
-};
-
-// Animation variants for background stars
-const starVariants = {
-  twinkle: {
-    opacity: [0.3, 0.8, 0.3],
-    scale: [1, 1.2, 1],
+    rotateX: 0,
     transition: {
-      duration: 3,
-      repeat: Infinity,
+      duration: 0.6,
+      ease: [0.25, 0.46, 0.45, 0.94],
+      type: "spring",
+      stiffness: 100,
+    },
+  },
+  exit: {
+    opacity: 0,
+    y: -20,
+    scale: 0.8,
+    rotateX: 15,
+    transition: { duration: 0.4 },
+  },
+}
+
+// Enhanced background animation variants
+const floatingVariants = {
+  float: {
+    y: [-20, 20, -20],
+    x: [-10, 10, -10],
+    rotate: [0, 5, -5, 0],
+    scale: [1, 1.1, 1],
+    transition: {
+      duration: 8,
+      repeat: Number.POSITIVE_INFINITY,
       ease: "easeInOut",
-      delay: Math.random() * 3
-    }
-  }
-};
+    },
+  },
+}
+
+const sparkleVariants = {
+  twinkle: {
+    opacity: [0.3, 1, 0.3],
+    scale: [0.8, 1.5, 0.8],
+    rotate: [0, 180, 360],
+    transition: {
+      duration: 2,
+      repeat: Number.POSITIVE_INFINITY,
+      ease: "easeInOut",
+      delay: Math.random() * 2,
+    },
+  },
+}
 
 function Chatscreen({ chat, messages, onHeaderClick }) {
-  const router = useRouter();
-  const [user, loading, error] = useAuthState(auth);
-  const [input, setInput] = useState("");
-  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  const [isInputFocused, setIsInputFocused] = useState(false);
+  const router = useRouter()
+  const [user, loading, error] = useAuthState(auth)
+  const [input, setInput] = useState("")
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false)
+  const [isInputFocused, setIsInputFocused] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
+  const recipientEmail = chat && chat.users ? getRecipientEmail(chat.users, user) : null // Moved up to avoid conditional hook call
+  const [recipientSnapshot] = useCollection(
+    recipientEmail ? db.collection("users").where("email", "==", recipientEmail) : null,
+  )
+  const [messagesSnapshot] = useCollection(
+    db.collection("chats").doc(chat.id).collection("messages").orderBy("timestamp", "asc"),
+  )
 
-  const endOfMessagesRef = useRef(null);
+  const endOfMessagesRef = useRef(null)
 
-  // Animation variants for the component
+  // Enhanced animation variants
   const containerVariants = {
     initial: { opacity: 0 },
-    animate: { 
+    animate: {
       opacity: 1,
-      transition: { duration: 0.8, staggerChildren: 0.1 }
-    }
-  };
+      transition: {
+        duration: 1,
+        staggerChildren: 0.15,
+        delayChildren: 0.2,
+      },
+    },
+  }
 
   const headerVariants = {
-    initial: { y: -50, opacity: 0 },
-    animate: { 
-      y: 0, 
+    initial: { y: -80, opacity: 0, scale: 0.9 },
+    animate: {
+      y: 0,
       opacity: 1,
-      transition: { duration: 0.6, ease: "easeOut" }
-    }
-  };
+      scale: 1,
+      transition: {
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94],
+        type: "spring",
+        stiffness: 100,
+      },
+    },
+  }
 
   const avatarVariants = {
-    initial: { scale: 0, rotate: -180 },
-    animate: { 
-      scale: 1, 
+    initial: { scale: 0, rotate: -360 },
+    animate: {
+      scale: 1,
       rotate: 0,
       transition: {
-        duration: 0.7,
+        duration: 1,
         type: "spring",
-        stiffness: 200
-      }
+        stiffness: 150,
+        damping: 12,
+      },
     },
     hover: {
-      scale: 1.1,
-      rotate: 5,
-      transition: { duration: 0.2 }
-    }
-  };
+      scale: 1.15,
+      rotate: [0, -10, 10, 0],
+      transition: { duration: 0.5 },
+    },
+  }
 
   const buttonVariants = {
     hover: {
-      scale: 1.05,
-      y: -2,
-      transition: { duration: 0.2 }
+      scale: 1.1,
+      y: -3,
+      boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+      transition: { duration: 0.2 },
     },
     tap: {
       scale: 0.95,
-      transition: { duration: 0.1 }
-    }
-  };
-
-  const inputVariants = {
-    initial: { y: 50, opacity: 0 },
-    animate: { 
-      y: 0, 
-      opacity: 1,
-      transition: { duration: 0.6, ease: "easeOut", delay: 0.2 }
-    }
-  };
-
-  const messageContainerVariants = {
-    initial: { opacity: 0, y: 20 },
-    animate: { 
-      opacity: 1, 
-      y: 0,
-      transition: { duration: 0.5, delay: 0.3 }
-    }
-  };
-
-  // Handle loading, error, and user states
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-900">
-      <motion.div
-        animate={{ rotate: 360 }}
-        transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-        className="w-16 h-16 border-4 border-purple-500/50 border-t-blue-400 rounded-full"
-      />
-    </div>
-  );
-  
-  if (error) return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-900">
-      <div className="bg-slate-800/80 backdrop-blur-lg p-6 rounded-2xl text-slate-200 border border-slate-600/50 shadow-lg">
-        Error: {error.message}
-      </div>
-    </div>
-  );
-  
-  if (!user) return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-900">
-      <div className="bg-slate-800/80 backdrop-blur-lg p-6 rounded-2xl text-slate-200 border border-slate-600/50 shadow-lg">
-        Please log in
-      </div>
-    </div>
-  );
-
-  // Log chat for debugging
-  console.log("Chatscreen chat prop:", chat);
-
-  // Ensure chat.users is valid before proceeding
-  if (!chat || !chat.users || !Array.isArray(chat.users)) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-900">
-        <div className="bg-slate-800/80 backdrop-blur-lg p-6 rounded-2xl text-slate-200 border border-slate-600/50 shadow-lg max-w-md">
-          Error: Invalid chat data. Chat object: {JSON.stringify(chat, null, 2)}
-        </div>
-      </div>
-    );
+      transition: { duration: 0.1 },
+    },
   }
 
-  const recipientEmail = getRecipientEmail(chat.users, user);
+  const inputVariants = {
+    initial: { y: 80, opacity: 0, scale: 0.9 },
+    animate: {
+      y: 0,
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.8,
+        ease: [0.25, 0.46, 0.45, 0.94],
+        delay: 0.4,
+      },
+    },
+  }
 
-  // Only query recipient if recipientEmail is valid
-  const [recipientSnapshot] = useCollection(
-    recipientEmail
-      ? db.collection("users").where("email", "==", recipientEmail)
-      : null
-  );
-  const [messagesSnapshot] = useCollection(
-    db
-      .collection("chats")
-      .doc(chat.id)
-      .collection("messages")
-      .orderBy("timestamp", "asc")
-  );
+  const messageContainerVariants = {
+    initial: { opacity: 0, y: 30 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        delay: 0.5,
+        staggerChildren: 0.1,
+      },
+    },
+  }
 
-  const recipient = recipientSnapshot?.docs?.[0]?.data();
+  // Handle loading, error, and user states with enhanced styling
+  if (loading)
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900">
+        <motion.div
+          animate={{
+            rotate: 360,
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            rotate: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" },
+            scale: { duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+          }}
+          className="w-20 h-20 border-4 border-pink-500/50 border-t-yellow-400 rounded-full shadow-lg"
+        />
+      </div>
+    )
+
+  if (error)
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900">
+        <motion.div
+          className="bg-red-500/20 backdrop-blur-lg p-8 rounded-3xl text-white border border-red-400/50 shadow-2xl"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          ❌ Error: {error.message}
+        </motion.div>
+      </div>
+    )
+
+  if (!user)
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900">
+        <motion.div
+          className="bg-blue-500/20 backdrop-blur-lg p-8 rounded-3xl text-white border border-blue-400/50 shadow-2xl"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          🔐 Please log in
+        </motion.div>
+      </div>
+    )
+
+  console.log("Chatscreen chat prop:", chat)
+
+  if (!chat || !chat.users || !Array.isArray(chat.users)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900">
+        <motion.div
+          className="bg-orange-500/20 backdrop-blur-lg p-8 rounded-3xl text-white border border-orange-400/50 shadow-2xl max-w-md text-center"
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          ⚠️ Error: Invalid chat data. Chat object: {JSON.stringify(chat, null, 2)}
+        </motion.div>
+      </div>
+    )
+  }
+
+  const recipient = recipientSnapshot?.docs?.[0]?.data()
 
   const scrollToBottom = () => {
     endOfMessagesRef.current.scrollIntoView({
       behavior: "smooth",
       block: "end",
       inline: "nearest",
-    });
-  };
+    })
+  }
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messagesSnapshot]);
+    scrollToBottom()
+  }, [messagesSnapshot])
 
   const sendMessage = (e) => {
-    e.preventDefault();
+    e.preventDefault()
+    if (!input.trim()) return
+
+    setIsTyping(true)
 
     db.collection("users").doc(user.uid).set(
       {
         lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
       },
-      { merge: true }
-    );
+      { merge: true },
+    )
 
     db.collection("chats").doc(router.query.id).collection("messages").add({
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -207,17 +265,18 @@ function Chatscreen({ chat, messages, onHeaderClick }) {
       message: input,
       photoURL: user.photoURL,
       receiverHasRead: false,
-    });
+    })
 
-    setInput("");
-    scrollToBottom();
-  };
+    setInput("")
+    setIsTyping(false)
+    scrollToBottom()
+  }
 
   const showMessages = () => {
     if (messagesSnapshot) {
-      return messagesSnapshot.docs?.map((message) => {
-        const messageData = message.data();
-        const isUser = messageData.user === user.email;
+      return messagesSnapshot.docs?.map((message, index) => {
+        const messageData = message.data()
+        const isUser = messageData.user === user.email
         return (
           <motion.div
             key={message.id}
@@ -225,347 +284,381 @@ function Chatscreen({ chat, messages, onHeaderClick }) {
             initial="initial"
             animate="animate"
             exit="exit"
-            className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-4`}
+            className={`flex ${isUser ? "justify-end" : "justify-start"} mb-6`}
+            style={{ animationDelay: `${index * 0.1}s` }}
           >
-            <div
-              className={`max-w-xs lg:max-w-md xl:max-w-lg p-4 rounded-2xl shadow-xl backdrop-blur-sm border ${
+            <motion.div
+              className={`max-w-xs lg:max-w-md xl:max-w-lg p-5 rounded-3xl shadow-2xl backdrop-blur-lg border-2 relative overflow-hidden ${
                 isUser
-                  ? 'bg-gradient-to-r from-purple-500/80 via-blue-500/80 to-emerald-500/80 text-white border-purple-400/30'
-                  : 'bg-slate-800/60 text-slate-200 border-slate-600/40'
+                  ? "bg-gradient-to-br from-pink-500/80 via-purple-500/80 to-indigo-500/80 text-white border-pink-400/50"
+                  : "bg-white/20 text-white border-white/30"
               }`}
-              style={{
-                backdropFilter: 'blur(10px)',
+              whileHover={{
+                scale: 1.02,
+                y: -2,
+                boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
               }}
+              transition={{ duration: 0.2 }}
             >
-              <p className="text-sm font-medium">{messageData.message}</p>
+              {/* Message bubble sparkle effect */}
+              <motion.div
+                className="absolute top-2 right-2 w-2 h-2 bg-yellow-300 rounded-full"
+                animate={{
+                  scale: [0, 1, 0],
+                  rotate: [0, 180, 360],
+                  opacity: [0, 1, 0],
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Number.POSITIVE_INFINITY,
+                  delay: Math.random() * 2,
+                }}
+              />
+
+              <p className="text-sm font-medium leading-relaxed">{messageData.message}</p>
               {messageData.timestamp && (
-                <p className={`text-xs mt-2 ${isUser ? 'text-white/70' : 'text-slate-400'}`}>
+                <motion.p
+                  className={`text-xs mt-3 ${isUser ? "text-white/80" : "text-white/70"} font-semibold`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                >
                   <Timeago date={messageData.timestamp.toDate()} />
-                </p>
+                </motion.p>
               )}
-            </div>
+            </motion.div>
           </motion.div>
-        );
-      });
+        )
+      })
     } else {
       return (
-        <div className="flex justify-center py-8">
+        <div className="flex justify-center py-12">
           <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="w-8 h-8 border-2 border-purple-500/50 border-t-blue-400 rounded-full"
+            animate={{
+              rotate: 360,
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              rotate: { duration: 2, repeat: Number.POSITIVE_INFINITY, ease: "linear" },
+              scale: { duration: 1, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" },
+            }}
+            className="w-12 h-12 border-4 border-pink-500/50 border-t-yellow-400 rounded-full"
           />
         </div>
-      );
+      )
     }
-  };
+  }
 
   return (
-    <motion.div 
-      className="main-container min-h-screen bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-900 relative font-mono overflow-hidden flex flex-col"
+    <motion.div
+      className="main-container min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900 relative font-mono overflow-hidden flex flex-col"
       style={{
         backgroundImage: `
-          radial-gradient(circle at 15% 25%, rgba(147, 51, 234, 0.08) 0.3%, transparent 2%),
-          radial-gradient(circle at 85% 75%, rgba(59, 130, 246, 0.06) 0.3%, transparent 2%),
-          radial-gradient(circle at 45% 45%, rgba(236, 72, 153, 0.04) 0.3%, transparent 2%),
-          radial-gradient(circle at 25% 85%, rgba(16, 185, 129, 0.05) 0.3%, transparent 2%),
-          linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.95) 50%, rgba(15, 23, 42, 0.9) 100%)
+          radial-gradient(circle at 20% 30%, rgba(236, 72, 153, 0.15) 0.5%, transparent 3%),
+          radial-gradient(circle at 80% 70%, rgba(147, 51, 234, 0.12) 0.5%, transparent 3%),
+          radial-gradient(circle at 40% 60%, rgba(99, 102, 241, 0.1) 0.5%, transparent 3%),
+          radial-gradient(circle at 60% 20%, rgba(245, 158, 11, 0.08) 0.5%, transparent 3%),
+          linear-gradient(135deg, rgba(88, 28, 135, 0.9) 0%, rgba(157, 23, 77, 0.95) 50%, rgba(88, 28, 135, 0.9) 100%)
         `,
-        backdropFilter: 'blur(10px)',
+        backdropFilter: "blur(20px)",
       }}
       variants={containerVariants}
       initial="initial"
       animate="animate"
     >
-      {/* Animated background elements */}
-      <motion.div 
-        className="absolute top-16 left-16 w-32 h-32 bg-purple-500/8 rounded-full blur-3xl"
-        animate={{
-          y: [-12, 12, -12],
-          x: [-8, 8, -8],
-          scale: [1, 1.15, 1],
-        }}
-        transition={{
-          duration: 12,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
+      {/* Enhanced animated background elements */}
+      <motion.div
+        className="absolute top-20 left-20 w-40 h-40 bg-pink-500/10 rounded-full blur-3xl"
+        variants={floatingVariants}
+        animate="float"
       />
-      <motion.div 
-        className="absolute bottom-32 right-16 w-28 h-28 bg-blue-500/10 rounded-full blur-3xl"
-        animate={{
-          y: [12, -12, 12],
-          x: [8, -8, 8],
-          scale: [1, 1.25, 1],
-        }}
-        transition={{
-          duration: 15,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 3
-        }}
+      <motion.div
+        className="absolute bottom-40 right-20 w-36 h-36 bg-purple-500/12 rounded-full blur-3xl"
+        variants={floatingVariants}
+        animate="float"
+        style={{ animationDelay: "2s" }}
       />
-      <motion.div 
-        className="absolute top-1/2 right-8 w-24 h-24 bg-emerald-500/6 rounded-full blur-2xl"
-        animate={{
-          y: [-8, 8, -8],
-          x: [-4, 4, -4],
-          scale: [1, 1.3, 1],
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1.5
-        }}
+      <motion.div
+        className="absolute top-1/2 right-12 w-32 h-32 bg-indigo-500/8 rounded-full blur-2xl"
+        variants={floatingVariants}
+        animate="float"
+        style={{ animationDelay: "4s" }}
       />
 
       {/* Enhanced twinkling stars */}
-      {[...Array(25)].map((_, i) => (
+      {[...Array(40)].map((_, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full"
           style={{
-            width: Math.random() * 3 + 1 + 'px',
-            height: Math.random() * 3 + 1 + 'px',
-            backgroundColor: ['#60a5fa', '#a78bfa', '#34d399', '#f472b6'][Math.floor(Math.random() * 4)],
+            width: Math.random() * 4 + 1 + "px",
+            height: Math.random() * 4 + 1 + "px",
+            backgroundColor: ["#fbbf24", "#f472b6", "#a78bfa", "#34d399", "#60a5fa"][Math.floor(Math.random() * 5)],
             top: `${Math.random() * 100}%`,
             left: `${Math.random() * 100}%`,
-            boxShadow: `0 0 ${Math.random() * 8 + 4}px currentColor`,
+            boxShadow: `0 0 ${Math.random() * 10 + 6}px currentColor`,
           }}
-          variants={starVariants}
+          variants={sparkleVariants}
           animate="twinkle"
         />
       ))}
 
-      {/* Fixed Header */}
-      <motion.div 
-        className="cursor-pointer header sticky top-0 left-0 right-0 z-50 mx-5 lg:mx-8 mt-4 flex items-center p-5 h-20 bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl hover:bg-slate-800/50 transition-all duration-300"
+      {/* Enhanced Header */}
+      <motion.div
+        className="cursor-pointer header sticky top-0 left-0 right-0 z-50 mx-6 lg:mx-10 mt-6 flex items-center p-6 h-24 bg-white/10 backdrop-blur-2xl border-2 border-white/20 rounded-3xl shadow-2xl hover:bg-white/15 transition-all duration-500"
         variants={headerVariants}
         onClick={onHeaderClick}
-        style={{
-          backdropFilter: 'blur(12px)',
+        whileHover={{
+          scale: 1.02,
+          boxShadow: "0 25px 50px rgba(0,0,0,0.3)",
         }}
       >
         {recipient ? (
-          <motion.div 
-            className="header__recipient-avatar"
-            variants={avatarVariants}
-            whileHover="hover"
-          >
-            <div className="w-12 h-12 rounded-full relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 rounded-full p-0.5 shadow-lg">
-                <div className="w-full h-full bg-slate-900 rounded-full overflow-hidden">
+          <motion.div className="header__recipient-avatar" variants={avatarVariants} whileHover="hover">
+            <div className="w-14 h-14 rounded-full relative">
+              <motion.div
+                className="absolute inset-0 rounded-full p-1"
+                animate={{
+                  background: [
+                    "linear-gradient(0deg, #f59e0b, #ef4444, #8b5cf6)",
+                    "linear-gradient(120deg, #ef4444, #8b5cf6, #f59e0b)",
+                    "linear-gradient(240deg, #8b5cf6, #f59e0b, #ef4444)",
+                  ],
+                }}
+                transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY }}
+              >
+                <div className="w-full h-full bg-black/20 rounded-full overflow-hidden backdrop-blur-sm">
                   <img
-                    src={recipient?.photoURL}
+                    src={recipient?.photoURL || "/placeholder.svg"}
                     alt={recipientEmail + "'s" + " Avatar"}
                     className="w-full h-full object-cover"
                   />
                 </div>
-              </div>
-              {/* Online indicator */}
+              </motion.div>
+              {/* Enhanced online indicator */}
               <motion.div
-                className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-emerald-400 rounded-full border-2 border-slate-900 shadow-lg shadow-emerald-400/50"
+                className="absolute bottom-0 right-0 w-4 h-4 bg-green-400 rounded-full border-3 border-white shadow-xl"
                 initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.5, type: "spring" }}
+                animate={{
+                  scale: [1, 1.3, 1],
+                  boxShadow: [
+                    "0 0 0 0 rgba(34, 197, 94, 0.7)",
+                    "0 0 0 10px rgba(34, 197, 94, 0)",
+                    "0 0 0 0 rgba(34, 197, 94, 0)",
+                  ],
+                }}
+                transition={{
+                  delay: 0.8,
+                  duration: 2,
+                  repeat: Number.POSITIVE_INFINITY,
+                }}
               />
             </div>
           </motion.div>
         ) : (
-          <motion.div 
-            className="header__recipient-avatar"
-            variants={avatarVariants}
-            whileHover="hover"
-          >
-            <div className="w-12 h-12 rounded-full relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-purple-400 via-blue-400 to-emerald-400 rounded-full p-0.5 shadow-lg">
-                <div className="w-full h-full bg-slate-900 rounded-full flex items-center justify-center">
-                  <span className="text-xl font-bold text-slate-200">
+          <motion.div className="header__recipient-avatar" variants={avatarVariants} whileHover="hover">
+            <div className="w-14 h-14 rounded-full relative">
+              <motion.div
+                className="absolute inset-0 rounded-full p-1"
+                animate={{
+                  background: [
+                    "linear-gradient(0deg, #f59e0b, #ef4444, #8b5cf6)",
+                    "linear-gradient(120deg, #ef4444, #8b5cf6, #f59e0b)",
+                    "linear-gradient(240deg, #8b5cf6, #f59e0b, #ef4444)",
+                  ],
+                }}
+                transition={{ duration: 4, repeat: Number.POSITIVE_INFINITY }}
+              >
+                <div className="w-full h-full bg-black/20 rounded-full flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-xl font-bold text-white">
                     {recipientEmail ? recipientEmail[0].toUpperCase() : "?"}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         )}
-        
-        <motion.div 
-          className="header__information ml-4 flex-1"
-          initial={{ opacity: 0, x: -20 }}
+
+        <motion.div
+          className="header__information ml-5 flex-1"
+          initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
+          transition={{ delay: 0.4, duration: 0.6 }}
         >
-          <h3 className="text-xl font-semibold mb-1 text-slate-100">
+          <motion.h3
+            className="text-2xl font-bold mb-1 text-white drop-shadow-lg"
+            whileHover={{
+              scale: 1.05,
+              textShadow: "0 0 20px rgba(255,255,255,0.8)",
+            }}
+          >
             {recipient ? recipient.username : recipientEmail || "Unknown"}
-          </h3>
+          </motion.h3>
           {recipientSnapshot ? (
             recipient?.lastSeen?.toDate() ? (
-              <p className="text-sm text-slate-400">
+              <p className="text-sm text-white/80 font-medium">
                 Last active: <Timeago date={recipient?.lastSeen?.toDate()} />
               </p>
             ) : (
-              <p className="text-sm text-slate-400">
-                Last active: Unavailable
-              </p>
+              <p className="text-sm text-white/80 font-medium">Last active: Unavailable</p>
             )
           ) : (
-            <p className="text-sm text-slate-400">Loading...</p>
+            <p className="text-sm text-white/80 font-medium">Loading...</p>
           )}
         </motion.div>
-        
-        <motion.div 
-          className="header__icons flex space-x-2"
-          initial={{ opacity: 0, x: 20 }}
+
+        <motion.div
+          className="header__icons flex space-x-3"
+          initial={{ opacity: 0, x: 30 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4, duration: 0.5 }}
+          transition={{ delay: 0.5, duration: 0.6 }}
         >
-          <motion.button 
-            className="p-2.5 rounded-full bg-slate-800/50 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 border border-slate-600/30 shadow-lg"
+          <motion.button
+            className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 border border-white/20 shadow-lg"
             variants={buttonVariants}
             whileHover="hover"
             whileTap="tap"
           >
-            <User className="w-5 h-5 text-slate-300" />
+            <User className="w-6 h-6 text-white" />
           </motion.button>
           <motion.button
-            className="p-2.5 rounded-full bg-slate-800/50 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 border border-slate-600/30 shadow-lg"
+            className="p-3 rounded-2xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 border border-white/20 shadow-lg"
             type="button"
             onClick={scrollToBottom}
             variants={buttonVariants}
             whileHover="hover"
             whileTap="tap"
           >
-            <ArrowDown className="w-5 h-5 text-slate-300" />
+            <ArrowDown className="w-6 h-6 text-white" />
           </motion.button>
         </motion.div>
       </motion.div>
 
       {/* Messages Container */}
-      <motion.div 
-        className="message-container flex-1 p-8 px-5 lg:px-8 pt-8 pb-32 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600/40 scrollbar-track-transparent"
+      <motion.div
+        className="message-container flex-1 p-10 px-6 lg:px-10 pt-10 pb-40 overflow-y-auto scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent"
         variants={messageContainerVariants}
       >
-        {/* End-to-end encryption notice */}
+        {/* Enhanced end-to-end encryption notice */}
         <motion.div
-          className="end-to-end-notification p-4 rounded-2xl mx-auto max-w-lg mb-6 bg-slate-800/60 backdrop-blur-lg border border-slate-600/40 shadow-xl"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          style={{
-            backdropFilter: 'blur(10px)',
-          }}
+          className="end-to-end-notification p-6 rounded-3xl mx-auto max-w-lg mb-8 bg-white/10 backdrop-blur-2xl border-2 border-white/20 shadow-2xl"
+          initial={{ opacity: 0, y: 30, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ delay: 0.6, duration: 0.6 }}
+          whileHover={{ scale: 1.02 }}
         >
-          <div className="flex items-center text-slate-200">
+          <div className="flex items-center text-white">
             <motion.div
               animate={{
-                rotate: [0, 5, -5, 0],
+                rotate: [0, 10, -10, 0],
+                scale: [1, 1.1, 1],
               }}
               transition={{
-                duration: 2,
-                repeat: Infinity,
-                ease: "easeInOut"
+                duration: 3,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
               }}
             >
-              <Lock className="w-6 h-6 mr-3 text-emerald-400 shadow-lg shadow-emerald-400/50" />
+              <Lock className="w-8 h-8 mr-4 text-green-400 drop-shadow-lg" />
             </motion.div>
-            <p className="text-sm font-medium">
-              Messages are end-to-end encrypted. No one outside of this chat can read or listen to them.
-            </p>
+            <div>
+              <p className="text-base font-bold mb-1">🔒 End-to-End Encrypted</p>
+              <p className="text-sm text-white/80">Messages are secured. No one outside of this chat can read them.</p>
+            </div>
           </div>
         </motion.div>
 
-        <AnimatePresence>
-          {showMessages()}
-        </AnimatePresence>
-        <div
-          className="message-container__end-of-message mt-16 float-left clear-both"
-          ref={endOfMessagesRef}
-        />
+        <AnimatePresence>{showMessages()}</AnimatePresence>
+        <div className="message-container__end-of-message mt-20 float-left clear-both" ref={endOfMessagesRef} />
       </motion.div>
 
-      {/* Fixed Input Container (Bottom Center) */}
-      <motion.form 
-        className="input-container fixed bottom-0 left-0 right-0 z-50 p-4 mx-5 lg:mx-8 mb-4"
+      {/* Enhanced Input Container */}
+      <motion.form
+        className="input-container fixed bottom-0 left-0 right-0 z-50 p-6 mx-6 lg:mx-10 mb-6"
         variants={inputVariants}
         onSubmit={sendMessage}
       >
-        <div className="max-w-4xl mx-auto bg-slate-800/60 backdrop-blur-xl border border-slate-600/40 rounded-2xl shadow-2xl p-4 ml-80"
-             style={{ backdropFilter: 'blur(12px)' }}>
+        <div
+          className="max-w-4xl mx-auto bg-white/10 backdrop-blur-2xl border-2 border-white/20 rounded-3xl shadow-2xl p-5"
+          style={{ backdropFilter: "blur(20px)" }}
+        >
           <AnimatePresence>
             {emojiPickerOpen && (
               <motion.div
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                initial={{ opacity: 0, y: 60, scale: 0.8 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 50, scale: 0.9 }}
-                transition={{ duration: 0.3, ease: "easeOut" }}
-                className="absolute bottom-full left-4 mb-2"
+                exit={{ opacity: 0, y: 60, scale: 0.8 }}
+                transition={{ duration: 0.4, ease: "backOut" }}
+                className="absolute bottom-full left-6 mb-4"
               >
                 <Picker
                   title=""
                   emoji=""
                   set="facebook"
                   onSelect={(emoji) => {
-                    setInput(input + emoji.native);
-                    setEmojiPickerOpen(false);
+                    setInput(input + emoji.native)
+                    setEmojiPickerOpen(false)
                   }}
-                  color="#8b5cf6"
+                  color="#ec4899"
                 />
               </motion.div>
             )}
           </AnimatePresence>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <motion.button
               type="button"
               onClick={() => setEmojiPickerOpen(!emojiPickerOpen)}
-              className="p-3 rounded-full bg-slate-800/50 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 border border-slate-600/30 shadow-lg"
+              className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 border border-white/20 shadow-lg"
               variants={buttonVariants}
               whileHover="hover"
               whileTap="tap"
             >
-              <Smile className="w-5 h-5 text-slate-300" />
+              <Smile className="w-6 h-6 text-white" />
             </motion.button>
-            
+
             <motion.button
               type="button"
-              className="p-3 rounded-full bg-slate-800/50 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 border border-slate-600/30 shadow-lg"
+              className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 border border-white/20 shadow-lg"
               variants={buttonVariants}
               whileHover="hover"
               whileTap="tap"
             >
-              <Paperclip className="w-5 h-5 text-slate-300" />
+              <Paperclip className="w-6 h-6 text-white" />
             </motion.button>
 
             <motion.input
               type="text"
-              className="flex-1 bg-slate-800/50 backdrop-blur-sm border border-slate-600/40 rounded-2xl px-6 py-3.5 text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-300 shadow-inner"
+              className="flex-1 bg-white/10 backdrop-blur-sm border-2 border-white/20 rounded-2xl px-8 py-4 text-white placeholder-white/60 focus:outline-none focus:ring-4 focus:ring-pink-400/50 focus:border-pink-400/50 transition-all duration-300 shadow-inner text-lg font-medium"
               value={input}
-              placeholder="Type a message..."
+              placeholder="Type a message... ✨"
               onChange={(e) => setInput(e.target.value)}
               onFocus={() => {
-                setEmojiPickerOpen(false);
-                setIsInputFocused(true);
+                setEmojiPickerOpen(false)
+                setIsInputFocused(true)
               }}
               onBlur={() => setIsInputFocused(false)}
-              animate={isInputFocused ? { scale: 1.02 } : { scale: 1 }}
-              transition={{ duration: 0.2 }}
-              style={{ backdropFilter: 'blur(8px)' }}
+              animate={isInputFocused ? { scale: 1.02, borderColor: "rgba(236, 72, 153, 0.5)" } : { scale: 1 }}
+              transition={{ duration: 0.3 }}
+              style={{ backdropFilter: "blur(10px)" }}
             />
 
             <AnimatePresence>
               {input && (
                 <motion.button
                   type="submit"
-                  className="p-3 rounded-full bg-gradient-to-r from-purple-500 via-blue-500 to-emerald-500 hover:from-purple-600 hover:via-blue-600 hover:to-emerald-600 transition-all duration-300 shadow-xl"
+                  className="p-4 rounded-2xl bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 hover:from-pink-600 hover:via-purple-600 hover:to-indigo-600 transition-all duration-300 shadow-2xl border-2 border-white/20"
                   initial={{ scale: 0, rotate: -180 }}
                   animate={{ scale: 1, rotate: 0 }}
                   exit={{ scale: 0, rotate: 180 }}
-                  whileHover={{ scale: 1.1 }}
+                  whileHover={{
+                    scale: 1.15,
+                    boxShadow: "0 0 30px rgba(236, 72, 153, 0.6)",
+                  }}
                   whileTap={{ scale: 0.95 }}
                   transition={{ type: "spring", stiffness: 200 }}
                 >
-                  <Send className="w-5 h-5 text-white" />
+                  <Send className="w-6 h-6 text-white" />
                 </motion.button>
               )}
             </AnimatePresence>
@@ -573,12 +666,12 @@ function Chatscreen({ chat, messages, onHeaderClick }) {
             {!input && (
               <motion.button
                 type="button"
-                className="p-3 rounded-full bg-slate-800/50 backdrop-blur-sm hover:bg-slate-700/50 transition-all duration-300 border border-slate-600/30 shadow-lg"
+                className="p-4 rounded-2xl bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-all duration-300 border border-white/20 shadow-lg"
                 variants={buttonVariants}
                 whileHover="hover"
                 whileTap="tap"
               >
-                <Mic className="w-5 h-5 text-slate-300" />
+                <Mic className="w-6 h-6 text-white" />
               </motion.button>
             )}
           </div>
@@ -586,49 +679,43 @@ function Chatscreen({ chat, messages, onHeaderClick }) {
       </motion.form>
 
       {/* Enhanced floating decorative elements */}
-      <motion.div
-        className="absolute top-32 right-12 w-2.5 h-2.5 bg-purple-400 rounded-full shadow-lg shadow-purple-400/60"
-        animate={{
-          scale: [1, 1.8, 1],
-          opacity: [0.4, 1, 0.4],
-          x: [0, 8, 0],
-          y: [0, -8, 0],
-        }}
-        transition={{
-          duration: 4,
-          repeat: Infinity,
-          delay: 0.5
-        }}
-      />
-      <motion.div
-        className="absolute bottom-40 left-12 w-1.5 h-1.5 bg-blue-400 rounded-full shadow-lg shadow-blue-400/60"
-        animate={{
-          scale: [1, 2.2, 1],
-          opacity: [0.3, 1, 0.3],
-          x: [0, -8, 0],
-          y: [0, 8, 0],
-        }}
-        transition={{
-          duration: 5,
-          repeat: Infinity,
-          delay: 1.2
-        }}
-      />
-      <motion.div
-        className="absolute top-2/3 right-20 w-2 h-2 bg-emerald-400 rounded-full shadow-lg shadow-emerald-400/60"
-        animate={{
-          scale: [1, 1.6, 1],
-          opacity: [0.5, 1, 0.5],
-          rotate: [0, 180, 360],
-        }}
-        transition={{
-          duration: 6,
-          repeat: Infinity,
-          delay: 2
-        }}
-      />
+      {[...Array(8)].map((_, i) => (
+        <motion.div
+          key={i}
+          className={`absolute rounded-full ${
+            [
+              "bg-pink-400",
+              "bg-purple-400",
+              "bg-indigo-400",
+              "bg-yellow-400",
+              "bg-green-400",
+              "bg-blue-400",
+              "bg-orange-400",
+              "bg-red-400",
+            ][i]
+          }`}
+          style={{
+            width: Math.random() * 3 + 2 + "px",
+            height: Math.random() * 3 + 2 + "px",
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 100}%`,
+            boxShadow: `0 0 ${Math.random() * 15 + 10}px currentColor`,
+          }}
+          animate={{
+            scale: [1, 2, 1],
+            opacity: [0.4, 1, 0.4],
+            x: [0, Math.random() * 20 - 10, 0],
+            y: [0, Math.random() * 20 - 10, 0],
+          }}
+          transition={{
+            duration: Math.random() * 3 + 4,
+            repeat: Number.POSITIVE_INFINITY,
+            delay: Math.random() * 2,
+          }}
+        />
+      ))}
     </motion.div>
-  );
+  )
 }
 
-export { Chatscreen as ChatScreen };
+export { Chatscreen as ChatScreen }

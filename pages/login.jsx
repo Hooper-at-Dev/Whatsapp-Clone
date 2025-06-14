@@ -88,7 +88,7 @@ const Login = () => {
         <p className="text-lg font-semibold">About the Developer</p>
         <ul className="text-sm mt-2 text-white/80 space-y-1">
           <li>
-            This is <strong>not</strong> WhatsApp. It’s a fun clone by <strong>Sarthak</strong>.
+            This is <strong>not</strong> a production version. It’s a fun project to sharpn my skills.
           </li>
         </ul>
       </motion.div>
